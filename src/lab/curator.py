@@ -68,7 +68,71 @@ def curate_skills(results_dir="results", source_condition="baseline", out_dir=No
     model mặc định: make_model() (lab.model).
     Trả về: danh sách đường dẫn SKILL.md đã ghi.
     """
-    raise NotImplementedError("TODO: cài đặt curate_skills (xem guides/pseudocode/04_curator.md)")
+    import json
+
+    from .model import make_model
+    from .tasks import ROOT
+
+    if out_dir is None:
+        out_dir = ROOT / "skills" / "auto"
+    out_dir = Path(out_dir)
+
+    runs = []
+    for run_path in sorted((Path(results_dir) / source_condition).glob("*/run.json")):
+        run = json.loads(run_path.read_text(encoding="utf-8"))
+        if run.get("role") != "learn":
+            continue
+        failed = [
+            {"name": check["name"], "detail": check.get("detail", "")}
+            for check in run.get("checks", [])
+            if not check.get("passed", False)
+        ]
+        trace_path = run_path.with_name("trace.md")
+        trace = trace_path.read_text(encoding="utf-8")[-6000:] if trace_path.exists() else ""
+        runs.append({"task": run.get("task", run_path.parent.name), "failed": failed, "trace": trace})
+
+    if not any(run["failed"] for run in runs):
+        print("Warning: no failed checks in learning tasks.")
+        return []
+
+    evidence = "\n\n".join(
+        f"Task: {run['task']}\nFailed checks (name and feedback):\n"
+        + "\n".join(f"- {check['name']}: {check['detail']}" for check in run["failed"])
+        + f"\nTrace (last 6000 characters):\n{run['trace']}"
+        for run in runs
+    )
+    prompt = (
+        "Write SKILL files for a coding and data analysis agent. Below are failed checks "
+        "(names and reviewer feedback) and traces from learning runs. Identify general PROCESS "
+        f"mistakes and write at most {max_skills} short skills that prevent them on NEW tasks of the same kind.\n\n"
+        "Rules:\n"
+        "- Skills must be general: do not include task IDs, task-specific file names, answers, or numbers.\n"
+        "- Each skill needs YAML frontmatter with a lowercase hyphenated name and a one-sentence "
+        "description starting with 'Use when ...' that says when to apply it.\n"
+        "- After the frontmatter, write no more than 40 lines of imperative instructions; a checklist works well.\n"
+        "- Use this exact output format for each skill:\n"
+        "=== SKILL: <name> ===\n"
+        "---\n"
+        "name: <name>\n"
+        "description: Use when ...\n"
+        "---\n"
+        "<instructions>\n"
+        "=== END ===\n\n"
+        f"Learning runs:\n{evidence}"
+    )
+    reply = (model if model is not None else make_model()).invoke(prompt).content
+
+    written = []
+    for name, text in parse_skill_blocks(reply):
+        if len(written) >= max_skills:
+            break
+        if validate_skill(text, expected_name=name):
+            continue
+        path = out_dir / name / "SKILL.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text + "\n", encoding="utf-8")
+        written.append(path)
+    return written
 
 
 if __name__ == "__main__":
