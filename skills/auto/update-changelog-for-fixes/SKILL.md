@@ -1,11 +1,11 @@
 ---
 name: update-changelog-for-fixes
-description: Use when completing bug fixes to record each fix clearly in the changelog.
+description: Use when completing bug fixes to document each fix clearly in the CHANGELOG.md under '## Unreleased'.
 ---
-- Open the CHANGELOG.md file and locate the '## Unreleased' section.
+- Open CHANGELOG.md and locate the '## Unreleased' section.
 - For each bug fix, add a bullet point in the format: '- fix(<function name>): <short description>'.
 - Use concise, clear descriptions that summarize the fix impact.
-- Add at least one bullet per fix; if multiple fixes, add multiple bullets.
-- Keep the changelog entries sorted or grouped logically if applicable.
-- Save and commit the updated changelog with the fix changes.
-- Review changelog entries for clarity and completeness before release.
+- Include at least one bullet per bug fixed.
+- Keep the changelog entries consistent in style and formatting.
+- Save and commit the updated changelog along with the code changes.
+- Do not finalize or submit code without updating the changelog accordingly.

@@ -107,11 +107,8 @@ def run_task(task_id: str, condition: str, results_dir="results", model=None, re
         final = str(messages[-1].content) if messages else ""
 
         record["seconds"] = round(time.monotonic() - started, 1)
-        metadata = usage.usage_metadata.values()
         record["tokens"] = {
-            "input": sum(item.get("input_tokens", 0) for item in metadata),
-            "output": sum(item.get("output_tokens", 0) for item in usage.usage_metadata.values()),
-            "total": sum(item.get("total_tokens", 0) for item in usage.usage_metadata.values()),
+            k: sum(u.get(f"{k}_tokens", 0) for u in usage.usage_metadata.values()) for k in ("input", "output", "total")
         }
 
         calls = [call for message in messages if isinstance(message, AIMessage) for call in message.tool_calls]
